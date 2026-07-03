@@ -1,15 +1,12 @@
 {
-  "morning routine": [
-    {
-      "intent": "open_app",
-      "entity": "chrome"
-    },
-    {
-      "intent": "open_file",
-      "entity": "todo.txt"
-    },
-    {
-      "intent": "system_info"
-    }
+  "morning": [
+    { "intent": "open_app", "entity": "chrome", "description": "Open browser" },
+    { "intent": "open_app", "entity": "vscode", "description": "Open IDE" },
+    { "intent": "system_info", "entity": "", "description": "Show system stats" }
+  ],
+  "evening": [
+    { "intent": "close_app", "entity": "chrome", "description": "Close browser" },
+    { "intent": "close_app", "entity": "vscode", "description": "Close IDE" },
+    { "intent": "lock_screen", "entity": "", "description": "Lock screen" }
   ]
 }

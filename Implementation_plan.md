@@ -1,21 +1,21 @@
 # JARVIS-Lite: Complete Implementation Plan
 
-**Version:** 1.0  
-**Based On:** PRD v1.0, Backend Schema v1.0, Appflow Spec, Frontend Guidelines v1.0, Tech Stack Spec  
-**Target Platform:** Windows 10/11 (primary), macOS, Linux  
-**Python:** 3.11+  
+**Version:** 1.0
+**Based On:** PRD v1.0, Backend Schema v1.0, Appflow Spec, Frontend Guidelines v1.0, Tech Stack Spec
+**Target Platform:** Windows 10/11 (primary), macOS, Linux
+**Python:** 3.11+
 
 ---
 
 ## Table of Contents
 
 1. [Project Overview](#1-project-overview)
-2. [Phase 1 — Foundation & Project Scaffold](#2-phase-1--foundation--project-scaffold)
+2. [Phase 1 — Foundation &amp; Project Scaffold](#2-phase-1--foundation--project-scaffold)
 3. [Phase 2 — Core Engine Modules](#3-phase-2--core-engine-modules)
 4. [Phase 3 — Skills Layer](#4-phase-3--skills-layer)
 5. [Phase 4 — Interface Layer](#5-phase-4--interface-layer)
-6. [Phase 5 — Integration & Main Loop](#6-phase-5--integration--main-loop)
-7. [Phase 6 — Testing & QA](#7-phase-6--testing--qa)
+6. [Phase 5 — Integration &amp; Main Loop](#6-phase-5--integration--main-loop)
+7. [Phase 6 — Testing &amp; QA](#7-phase-6--testing--qa)
 8. [Phase 7 — Phase 2 Features (Post-MVP)](#8-phase-7--phase-2-features-post-mvp)
 9. [Dependency Installation Order](#9-dependency-installation-order)
 10. [File-by-File Implementation Guide](#10-file-by-file-implementation-guide)
@@ -26,9 +26,11 @@
 ## 1. Project Overview
 
 ### Goal
+
 Build **JARVIS-Lite**: a fully offline, privacy-first, voice-controlled desktop assistant that uses Whisper (STT) + spaCy (NLP) + pyttsx3 (TTS) to execute file operations, app control, and system commands via natural language.
 
 ### MVP Scope (Phase 1-6)
+
 - Voice input (push-to-talk via SPACE key)
 - Whisper STT → spaCy/rule-based NLP → skill execution → pyttsx3 TTS
 - Core skills: file ops, app control, volume, screenshot, lock screen
@@ -36,6 +38,7 @@ Build **JARVIS-Lite**: a fully offline, privacy-first, voice-controlled desktop 
 - Terminal UI with ANSI colors and animations
 
 ### Non-MVP (Phase 7+)
+
 - Wake word detection (Porcupine)
 - System tray interface (pystray)
 - Web dashboard (Flask)
@@ -105,6 +108,7 @@ jarvis/
 ### 2.2 Configuration Files
 
 #### `config/settings.json`
+
 *(Note: Consolidating all config into a single source of truth as specified by Backend Schema)*
 
 ```json
@@ -178,9 +182,11 @@ jarvis/
   }
 }
 ```
+
 > **Windows Note:** To capture global hotkeys reliably even when another application has focus, the system MUST use `pywin32` (`SetWindowsHookEx`) rather than the `keyboard` library which requires Administrator privileges.
 
 #### `config/macros.json`
+
 ```json
 {
   "morning routine": [
@@ -194,6 +200,7 @@ jarvis/
 ### 2.3 Setup Scripts
 
 #### `scripts/download_models.py`
+
 ```python
 import os
 import whisper
@@ -213,6 +220,7 @@ if __name__ == "__main__":
 ### 2.3 Requirements Files
 
 #### `requirements.txt`
+
 ```
 # Audio
 sounddevice==0.4.6
@@ -239,6 +247,7 @@ python-dotenv==1.0.0
 ```
 
 #### `requirements-dev.txt`
+
 ```
 pytest==7.4.4
 pytest-benchmark==4.0.0
@@ -249,6 +258,7 @@ mypy==1.8.0
 ```
 
 ### 2.4 `.gitignore`
+
 ```
 __pycache__/
 *.pyc
@@ -276,6 +286,7 @@ build/
 **Implement exactly as specified in Backend Schema §2.1.**
 
 Key classes to implement (in order):
+
 1. `State` (Enum) — 10 system states: INITIALIZING → SHUTTING_DOWN
 2. `AudioFormat` (Enum) — PCM_16BIT, FLOAT32
 3. `IntentType` (Enum) — 13 intent types
@@ -292,6 +303,7 @@ Key classes to implement (in order):
 14. `JarvisError` (dataclass) — typed error with suggestion
 
 **Critical rules:**
+
 - All dataclasses use `field(default_factory=...)` for mutable defaults
 - `ConversationContext.add_turn()` auto-prunes to last 50 turns
 - `SystemConfig.from_dict()` and `.to_dict()` must be inverse operations
@@ -314,25 +326,25 @@ from typing import Optional
 
 class JarvisLogger:
     """Centralized logger with structured output"""
-    
+  
     _instance: Optional['JarvisLogger'] = None
-    
+  
     def __init__(self, name: str = "jarvis", verbose: bool = False, log_file: Optional[str] = None):
         self.logger = logging.getLogger(name)
         level = logging.DEBUG if verbose else logging.INFO
         self.logger.setLevel(level)
-        
+      
         # Console handler with color
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(ColoredFormatter())
         self.logger.addHandler(console_handler)
-        
+      
         # File handler (optional)
         if log_file:
             file_handler = logging.FileHandler(log_file)
             file_handler.setFormatter(JSONFormatter())
             self.logger.addHandler(file_handler)
-    
+  
     def info(self, msg: str, **kwargs): ...
     def debug(self, msg: str, **kwargs): ...
     def warning(self, msg: str, **kwargs): ...
@@ -340,6 +352,7 @@ class JarvisLogger:
 ```
 
 **Implementation notes:**
+
 - `ColoredFormatter` uses ANSI codes matching `Colors` class in `ui.py`
 - `JSONFormatter` outputs `{"timestamp": ..., "level": ..., "message": ...}` for file logging
 - Singleton pattern via `JarvisLogger._instance`
@@ -373,11 +386,11 @@ DANGEROUS_PATTERNS = [
 def validate_file_path(path: str, allowed_dirs: List[str]) -> Optional[str]:
     """
     Validate file path is within allowed directories.
-    
+  
     Args:
         path: File path to validate
         allowed_dirs: List of allowed base directories
-        
+      
     Returns:
         Resolved path string if valid, None if blocked
     """
@@ -406,7 +419,7 @@ def is_dangerous_command(text: str) -> bool:
 
 ```python
 class SoundDeviceAudio(AudioInterface):
-    
+  
     def get_waveform_visualization(self, audio_chunk: np.ndarray) -> str:
         """
         Return ASCII waveform for UI display during recording.
@@ -417,7 +430,7 @@ class SoundDeviceAudio(AudioInterface):
         rms = np.sqrt(np.mean(audio_chunk**2))
         level_idx = min(7, int(rms * 100))
         return levels[level_idx] * 16
-    
+  
     def detect_silence(self, audio_chunk: np.ndarray, threshold: float = 0.01) -> bool:
         """Return True if audio chunk is silent (below threshold RMS)."""
         rms = np.sqrt(np.mean(audio_chunk**2))
@@ -427,6 +440,7 @@ class SoundDeviceAudio(AudioInterface):
 **State machine hook:** `start_recording()` must be called from IDLE→LISTENING transition, `stop_recording()` from LISTENING→TRANSCRIBING.
 
 **Error handling:**
+
 - No microphone → raise `AudioError` with message "No microphone found. Check audio settings."
 - Device disconnect during recording → stop gracefully, return partial audio
 
@@ -437,9 +451,10 @@ class SoundDeviceAudio(AudioInterface):
 **Implement `STTInterface` ABC + `WhisperSTT` + `VoskSTT` as in Backend Schema §3.2.**
 
 **Loading strategy:**
+
 ```python
 class WhisperSTT(STTInterface):
-    
+  
     def initialize(self, model: str = "base") -> bool:
         """
         Load Whisper model. Shows progress to caller via callback.
@@ -448,7 +463,7 @@ class WhisperSTT(STTInterface):
         import whisper
         self.model = whisper.load_model(model)
         return True
-    
+  
     def transcribe(self, audio: AudioData) -> Optional[str]:
         """
         Transcribe audio. Returns None if text is empty or transcription fails.
@@ -466,6 +481,7 @@ class WhisperSTT(STTInterface):
 ```
 
 **Fallback logic (in `main.py` / orchestrator):**
+
 ```
 Try WhisperSTT.transcribe() → success → continue
 If exception or returns None → Try VoskSTT.transcribe() → use result
@@ -474,6 +490,7 @@ If both fail → transition to ERROR state
 
 > **Performance Targets (Hardware Dependent):**
 > Inference time varies wildly based on hardware. The system is designed with tiered expectations (as per PRD §6.1):
+>
 > - **Tier 1 (GPU/Apple Silicon):** < 1.0s inference
 > - **Tier 2 (Modern CPU):** 1.0s - 3.0s inference
 > - **Tier 3 (Older CPU):** > 3.0s inference (display "Processing speech..." explicitly to manage expectations)
@@ -544,6 +561,7 @@ self.intent_patterns = {
 ```
 
 **Parameter extractor** — `_extract_parameters()` must handle:
+
 - `OPEN_FILE`: Extract filename after "open", strip common words ("the", "my", "a")
 - `OPEN_APP`: Match against known app aliases (chrome→chrome, browser→chrome, code→vscode)
 - `CLOSE_APP`: Same as OPEN_APP extraction
@@ -552,12 +570,14 @@ self.intent_patterns = {
 - `CREATE_FILE`: Filename after "create/make/new [a/the] file called/named"
 
 **Clarification resolution** (Backend Schema §3.3 `resolve_clarification`):
+
 - Try digit input (1, 2, 3) → index into `context.clarification_options`
 - Try ordinal words ("first", "second", "third") → same mapping
 - Try rapidfuzz matching (threshold 70%) against option list
 - If all fail → return None → speak "I couldn't match that. Try saying the number."
 
 **Confidence Floor & "Did you mean?" (F2.x):**
+
 - If max confidence is between `0.4` and `0.75` (configurable threshold):
   Set `requires_clarification = True`
   `clarification_message` = "Did you mean [matched_intent]?"
@@ -565,6 +585,7 @@ self.intent_patterns = {
   Return `ErrorType.NOT_UNDERSTOOD`
 
 **State Machine Fix (PARSING):**
+
 - `parse_intent(text, context)` MUST check `if context.awaiting_clarification:` BEFORE attempting a fresh Regex parse. If true, route text to `resolve_clarification` first.
 
 **Phase 2 (Post-MVP): LLM-native NLP**
@@ -579,6 +600,7 @@ In Phase 2, `RuleBasedNLP` will be swapped with `LLMNativeNLP`, utilizing a loca
 **Thread safety & Barge-in note:** pyttsx3's `runAndWait()` is blocking. To support TTS interruption (Barge-in), run the engine in a dedicated daemon thread using `engine.startLoop(False)` + `engine.iterate()`. A global `tts_interrupt_flag` (threading.Event) should be checked on every tick; if set, immediately stop the engine and flush the audio queue.
 
 **Voice selection:**
+
 ```python
 def _select_voice(self):
     """Select best available voice (prefer male/neutral)"""
@@ -633,7 +655,7 @@ def load_from_file(cls, filepath: str) -> 'ConversationContext':
             role=turn_data['role'],
             content=turn_data['content']
         ))
-    
+  
     # Advanced Feature: Load Core Beliefs
     try:
         import sqlite3
@@ -644,7 +666,7 @@ def load_from_file(cls, filepath: str) -> 'ConversationContext':
         conn.close()
     except Exception:
         pass
-        
+      
     return ctx
 ```
 
@@ -655,6 +677,7 @@ def load_from_file(cls, filepath: str) -> 'ConversationContext':
 **Implement `ExecutorInterface` ABC + `SkillBasedExecutor` as in Backend Schema §3.5.**
 
 **Intent → Skill routing table:**
+
 ```python
 INTENT_SKILL_MAP = {
     IntentType.OPEN_FILE:       "file_operations",
@@ -676,13 +699,14 @@ INTENT_SKILL_MAP = {
 ```
 
 **Execution wrapper:**
+
 ```python
 def execute(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
     # 1. Security check
     if not validate_safe_execution(intent):
         return ExecutionResult(success=False, message="Command blocked for safety",
                                error_type=ErrorType.PERMISSION_DENIED)
-    
+  
     # 2. Route to skill
     # 3. Execute with 5-second timeout
     # 4. Context variable writes (MUST happen after successful execution)
@@ -707,22 +731,22 @@ from pathlib import Path
 from models import SystemConfig
 
 class ConfigManager:
-    
+  
     CONFIG_FILE = Path("config/settings.json")
     MACRO_FILE = Path("config/macros.json")
-    
+  
     def __init__(self):
         self.config = {}
         self.macros = {}
-    
+  
     def load_all(self) -> SystemConfig:
         """Load settings.json and merge into SystemConfig"""
         ...
-    
+  
     def get(self, key: str, default=None):
         """Dot-notation config access: get('pipeline.stt.engine')"""
         ...
-    
+  
     def reload(self):
         """Re-read config files from disk"""
         ...
@@ -764,34 +788,34 @@ from models import Intent, ExecutionResult, ConversationContext, SkillMetadata
 
 class BaseSkill(ABC):
     """Abstract base for all JARVIS skills"""
-    
+  
     name: str = ""
     version: str = "1.0.0"
     description: str = ""
-    
+  
     def __init__(self, config: dict = None):
         self.config = config or {}
         self.logger = ...  # Inject logger
-    
+  
     @abstractmethod
     def initialize(self) -> bool:
         """Called once when skill is loaded. Return True if ready."""
         pass
-    
+  
     @abstractmethod
     def get_handled_intents(self) -> list:
         """Return list of IntentType values this skill handles."""
         pass
-    
+  
     @abstractmethod
     def execute(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
         """Execute the intent. Return ExecutionResult."""
         pass
-    
+  
     def shutdown(self):
         """Called on system shutdown. Override for cleanup."""
         pass
-    
+  
     def get_metadata(self) -> SkillMetadata:
         return SkillMetadata(
             name=self.name,
@@ -819,34 +843,34 @@ from models import IntentType, Intent, ExecutionResult, ConversationContext, Ski
 from skills.base import BaseSkill
 
 class SkillManager:
-    
+  
     def __init__(self):
         self.skills: Dict[str, BaseSkill] = {}
         self.intent_map: Dict[IntentType, str] = {}
-    
+  
     def load_core_skills(self, config: dict) -> bool:
         """Load all skills from skills/core/ directory"""
         from skills.core.file_operations import FileOperationsSkill
         from skills.core.app_control import AppControlSkill
         from skills.core.system_control import SystemControlSkill
         from skills.core.process_management import ProcessManagementSkill
-        
+      
         skill_classes = [
             (FileOperationsSkill, config.get('file_operations', {})),
             (AppControlSkill, config.get('app_control', {})),
             (SystemControlSkill, config.get('system_control', {})),
             (ProcessManagementSkill, config.get('process_management', {})),
         ]
-        
+      
         for SkillClass, skill_config in skill_classes:
             skill = SkillClass(skill_config)
             if skill.initialize():
                 self.skills[skill.name] = skill
                 for intent_type in skill.get_handled_intents():
                     self.intent_map[intent_type] = skill.name
-        
+      
         return len(self.skills) > 0
-    
+  
     def dispatch(self, intent: Intent, context: ConversationContext) -> Optional[ExecutionResult]:
         """Route intent to appropriate skill"""
         skill_name = self.intent_map.get(intent.type)
@@ -855,12 +879,12 @@ class SkillManager:
         skill = self.skills.get(skill_name)
         if not skill:
             return None
-            
+          
         # Security: Enforce Capability Manifests
         from utils.security import validate_capabilities
         if not validate_capabilities(skill, intent):
             return ExecutionResult(success=False, message="Permission denied by manifest")
-            
+          
         return skill.execute(intent, context)
 ```
 
@@ -895,11 +919,11 @@ def install_skill(repo_url: str):
 class FileOperationsSkill(BaseSkill):
     name = "file_operations"
     description = "Open, search, create, and delete files"
-    
+  
     def get_handled_intents(self):
         return [IntentType.OPEN_FILE, IntentType.SEARCH_FILES,
                 IntentType.CREATE_FILE, IntentType.DELETE_FILE]
-    
+  
     def execute(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
         handlers = {
             IntentType.OPEN_FILE:    self._open_file,
@@ -911,7 +935,7 @@ class FileOperationsSkill(BaseSkill):
         return handler(intent, context) if handler else ExecutionResult(
             success=False, message="Unknown file operation"
         )
-    
+  
     def _open_file(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
         """
         1. Extract filename from intent.parameters['filename']
@@ -922,18 +946,18 @@ class FileOperationsSkill(BaseSkill):
            and set context.set_clarification(intent, [list of matches])
         """
         ...
-    
+  
     def _search_files(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
         """
         Search by query string using rglob("*{query}*") in allowed dirs.
         Return formatted list of up to 10 matches.
         """
         ...
-    
+  
     def _create_file(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
         """Create empty text file on Desktop (or specified location)."""
         ...
-    
+  
     def _delete_file(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
         """
         ALWAYS require confirmation. Set context variable 'pending_delete'.
@@ -943,6 +967,7 @@ class FileOperationsSkill(BaseSkill):
 ```
 
 **Clarification flow for multi-match files:**
+
 ```python
 # In _open_file, when multiple matches found:
 context.set_clarification(intent, [str(p) for p in matches[:5]])
@@ -962,7 +987,7 @@ return ExecutionResult(
 ```python
 class AppControlSkill(BaseSkill):
     name = "app_control"
-    
+  
     # Load app_map from config/skills.json
     def _get_app_command(self, app_name: str) -> Optional[str]:
         """
@@ -972,7 +997,7 @@ class AppControlSkill(BaseSkill):
         import sys
         platform = 'win' if sys.platform == 'win32' else 'mac' if sys.platform == 'darwin' else 'linux'
         app_map = self.config.get('app_map', {})
-        
+      
         # Normalize aliases
         aliases = {
             'browser': 'chrome', 'web': 'chrome', 'internet': 'chrome',
@@ -980,10 +1005,10 @@ class AppControlSkill(BaseSkill):
             'cmd': 'terminal', 'command prompt': 'terminal',
         }
         normalized = aliases.get(app_name.lower(), app_name.lower())
-        
+      
         app_entry = app_map.get(normalized)
         return app_entry.get(platform) if app_entry else None
-    
+  
     def _open_app(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
         """
         1. Get app name from intent.parameters['app_name']
@@ -992,7 +1017,7 @@ class AppControlSkill(BaseSkill):
         4. Return "Launching {app_name}"
         """
         ...
-    
+  
     def _close_app(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
         """
         1. Find process by name using psutil.process_iter()
@@ -1012,7 +1037,7 @@ class AppControlSkill(BaseSkill):
 ```python
 class SystemControlSkill(BaseSkill):
     name = "system_control"
-    
+  
     def _adjust_volume(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
         """
         Windows: Use pycaw or ctypes WinMM
@@ -1022,7 +1047,7 @@ class SystemControlSkill(BaseSkill):
         Step: 10% per command
         """
         ...
-    
+  
     def _take_screenshot(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
         """
         Use pyautogui.screenshot() → save to ~/Desktop/screenshot_{timestamp}.png
@@ -1034,7 +1059,7 @@ class SystemControlSkill(BaseSkill):
         save_path = Path.home() / "Desktop" / filename
         pyautogui.screenshot(str(save_path))
         return ExecutionResult(success=True, message=f"Screenshot saved: {filename}")
-    
+  
     def _lock_screen(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
         """
         Windows: subprocess.run(['rundll32', 'user32.dll,LockWorkStation'])
@@ -1053,7 +1078,7 @@ class SystemControlSkill(BaseSkill):
 ```python
 class ProcessManagementSkill(BaseSkill):
     name = "process_management"
-    
+  
     def _get_system_info(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
         """
         Use psutil to get: cpu_percent, virtual_memory().percent, disk_usage('/').percent
@@ -1076,7 +1101,7 @@ class ProcessManagementSkill(BaseSkill):
 ```python
 class MacroSkill(BaseSkill):
     name = "macro_skill"
-    
+  
     def execute(self, intent: Intent, context: ConversationContext) -> ExecutionResult:
         """
         1. Look up macro by intent.parameters['macro_name'] in config/macros.json
@@ -1100,14 +1125,14 @@ class MacroSkill(BaseSkill):
 
 ```python
 class TerminalUI:
-    
+  
     def show_progress(self, message: str, percent: int):
         """Show loading progress bar during initialization"""
         filled = int(percent / 5)  # 20 slots for 0-100%
         bar = '█' * filled + '░' * (20 - filled)
         print(f"\r{Colors.PRIMARY}[{bar}]{Colors.RESET} {percent}% {message}", 
               end='', flush=True)
-    
+  
     def show_state(self, state: 'State'):
         """Update display for current state machine state"""
         state_displays = {
@@ -1142,25 +1167,25 @@ from models import State
 
 class CLI:
     """Command-line interface for JARVIS-Lite"""
-    
+  
     def __init__(self, jarvis_engine):
         self.engine = jarvis_engine
         self.ui = TerminalUI()
         self.running = True
         self.ptt_key = 'space'
-    
+  
     def run(self):
         """Main event loop"""
         self.ui.show_startup()
         self.engine.initialize(progress_callback=self.ui.show_loading_step)
         self.ui.show_startup_complete()
-        
+      
         while self.running:
             self.ui.show_idle_prompt()
-            
+          
             # Wait for push-to-talk or text input
             text_input = self._wait_for_input()
-            
+          
             if text_input is None:
                 # Push-to-talk: record audio
                 self._handle_voice_input()
@@ -1172,18 +1197,18 @@ class CLI:
             else:
                 # Text command: skip STT
                 self.engine.process_text(text_input)
-    
+  
     def _wait_for_input(self) -> Optional[str]:
         """
         Wait for SPACE (PTT) or Enter (text mode).
         Returns text if typed, None if SPACE was held.
-        
+      
         # Barge-in: If SPACE is pressed and engine state is RESPONDING:
         # tts_interrupt_flag.set()
         """
         # Use pywin32 global hook or keyboard.read_event() in a thread-safe manner
         ...
-    
+  
     def _handle_voice_input(self):
         """
         1. Show listening animation
@@ -1222,13 +1247,13 @@ from utils.security import is_dangerous_command
 
 class JarvisEngine:
     """Main orchestrator for JARVIS-Lite"""
-    
+  
     def __init__(self):
         self.state = State.INITIALIZING
         self.context = ConversationContext()
         self.config = None
         self.logger = JarvisLogger()
-        
+      
         # Components (initialized in initialize())
         self.audio = SoundDeviceAudio()
         self.stt = WhisperSTT()
@@ -1237,12 +1262,12 @@ class JarvisEngine:
         self.tts = Pyttsx3TTS()
         self.skill_manager = SkillManager()
         self.model_manager = ModelManager(self.stt, self.nlp)
-    
+  
     def initialize(self, progress_callback=None) -> bool:
         """
         Follows INITIALIZING state from Appflow §2.2.
         Calls progress_callback(message, percent) at each step.
-        
+      
         Steps:
         1. Load config (10%)
         2. Load spaCy NLP (30%)
@@ -1250,20 +1275,20 @@ class JarvisEngine:
         4. Load Whisper model (80%)
         5. Initialize TTS (90%)
         6. Load skills (100%)
-        
+      
         Returns True if all critical components loaded.
         Critical: audio, stt, nlp, tts
         Non-critical: skill failures (warn but continue)
         """
         ...
-    
+  
     def process_audio(self, audio_data) -> str:
         """TRANSCRIBING state: audio → text"""
         self.model_manager.prepare_for_stt()  # Evicts LLM from VRAM
         text = self.stt.transcribe(audio_data)
         if text is None:
             text = self.stt_fallback.transcribe(audio_data)
-            
+          
         if text:
             # F1.7 — STT Confirmation Display
             print(f"  I heard: '{text}'  (ESC to cancel)")
@@ -1273,9 +1298,9 @@ class JarvisEngine:
                 if keyboard.is_pressed('escape'):
                     return None  # Cancelled
                 time.sleep(0.05)
-                
+              
         return text
-    
+  
     def process_text(self, text: str) -> str:
         """PARSING + EXECUTING + RESPONDING: text → response"""
         # Security check
@@ -1283,34 +1308,34 @@ class JarvisEngine:
             response = "I can't do that — it looks like a dangerous command."
             self.tts.speak(response)
             return response
-        
-        
+      
+      
         # Parse intent
         self.model_manager.prepare_for_nlp()  # Evicts STT, loads LLM
         parse_result = self.nlp.parse_intent(text, self.context)
-        
+      
         # Handle clarification
         if parse_result.requires_clarification:
             self.context.set_clarification(parse_result.intent, 
                                            parse_result.clarification_options)
             self.tts.speak(parse_result.clarification_message)
             return parse_result.clarification_message
-        
+      
         # Execute
         result = self.skill_manager.dispatch(parse_result.intent, self.context)
-        
+      
         # Handle HELP and EXIT inline
         if parse_result.intent.type == IntentType.HELP:
             return self._handle_help()
         if parse_result.intent.type == IntentType.EXIT:
             return self._handle_exit()
-        
+      
         # TTS response
         response = result.message if result else "I don't know how to do that yet."
         self.context.add_turn('user', text)
         self.context.add_turn('assistant', response)
         self.tts.speak(response)
-        
+      
         return response
 ```
 
@@ -1341,21 +1366,21 @@ def parse_args():
 
 def main():
     args = parse_args()
-    
+  
     args = parser.parse_args()
-    
+  
     if args.diagnose:
         print("Running system diagnostics...")
         # Check audio devices, model paths, permissions
         sys.exit(0)
-        
+      
     config_manager = ConfigManager()
     if not config_manager.CONFIG_FILE.exists():
         run_setup_wizard()
-        
+      
     engine = JarvisEngine()
     cli = CLI(engine)
-    
+  
     try:
         cli.run()
     except KeyboardInterrupt:
@@ -1392,35 +1417,35 @@ class TestIntentParsing:
         result = nlp.parse_intent("open chrome", ctx)
         assert result.intent.type == IntentType.OPEN_APP
         assert result.intent.parameters.get('app_name') == 'chrome'
-    
+  
     def test_open_chrome_variations(self, nlp, ctx):
         phrases = ["launch chrome", "start chrome", "open the browser"]
         for phrase in phrases:
             result = nlp.parse_intent(phrase, ctx)
             assert result.intent.type == IntentType.OPEN_APP, f"Failed for: {phrase}"
-    
+  
     def test_search_files(self, nlp, ctx):
         result = nlp.parse_intent("find my resume", ctx)
         assert result.intent.type == IntentType.SEARCH_FILES
         assert 'resume' in result.intent.parameters.get('query', '')
-    
+  
     def test_volume_up(self, nlp, ctx):
         result = nlp.parse_intent("volume up", ctx)
         assert result.intent.type == IntentType.VOLUME_CONTROL
         assert result.intent.parameters.get('action') == 'up'
-    
+  
     def test_screenshot(self, nlp, ctx):
         result = nlp.parse_intent("take a screenshot", ctx)
         assert result.intent.type == IntentType.SCREENSHOT
-    
+  
     def test_unknown_intent(self, nlp, ctx):
         result = nlp.parse_intent("blargle froop zorp", ctx)
         assert result.intent.type == IntentType.UNKNOWN
-    
+  
     def test_help_intent(self, nlp, ctx):
         result = nlp.parse_intent("help", ctx)
         assert result.intent.type == IntentType.HELP
-    
+  
     def test_exit_intent(self, nlp, ctx):
         for phrase in ["exit", "quit", "goodbye", "bye"]:
             result = nlp.parse_intent(phrase, ctx)
@@ -1428,6 +1453,7 @@ class TestIntentParsing:
 ```
 
 **`tests/test_context.py`** — Test clarification flow:
+
 ```python
 def test_clarification_set_and_resolve_by_number(ctx):
     from models import Intent, IntentType
@@ -1445,15 +1471,16 @@ def test_resolve_clarification_by_fuzzy(ctx, nlp):
 ```
 
 **`tests/test_skills.py`** — Test skill execution:
+
 ```python
 def test_file_search_returns_results(tmp_path):
     # Create test files
     (tmp_path / "resume.pdf").touch()
     (tmp_path / "resume_old.pdf").touch()
-    
+  
     skill = FileOperationsSkill({'allowed_directories': [str(tmp_path)]})
     skill.initialize()
-    
+  
     intent = Intent(type=IntentType.SEARCH_FILES, confidence=0.9, 
                     parameters={'query': 'resume'})
     ctx = ConversationContext()
@@ -1463,6 +1490,7 @@ def test_file_search_returns_results(tmp_path):
 ```
 
 **`tests/test_security.py`** — Test security validator:
+
 ```python
 def test_blocks_directory_traversal():
     from utils.security import validate_file_path
@@ -1478,11 +1506,11 @@ def test_blocks_dangerous_commands():
 def test_manifest_permission_denied():
     from utils.security import validate_capabilities
     from models import SkillManifest, Intent, IntentType
-    
+  
     # Mock skill that requires FILE_SYSTEM_WRITE but manifest lacks it
     class MockSkill:
         manifest = SkillManifest(name="mock", version="1.0", required_capabilities=["network"])
-        
+      
     intent = Intent(type=IntentType.CREATE_FILE, confidence=0.9)
     # Should deny because intent requires write access
     assert validate_capabilities(MockSkill(), intent) is False
@@ -1492,27 +1520,28 @@ def test_manifest_permission_denied():
 
 Run these scenarios after full integration:
 
-| # | Command | Expected Behavior |
-|---|---------|-------------------|
-| 1 | "open chrome" | Chrome launches, TTS says "Launching Chrome" |
-| 2 | "find my resume" | Returns list of matching files |
-| 3 | "open my resume" (3 files found) | System asks "Which one? 1. resume.pdf 2. ..." |
-| 4 | (after above) "the second one" | Opens second file |
-| 5 | "volume up" | Volume increases 10% |
-| 6 | "take a screenshot" | Screenshot saved to Desktop |
-| 7 | "what is my CPU usage" | Returns "CPU: X%, RAM: Y%" |
-| 8 | "help" | Help screen displayed |
-| 9 | "blargle froop" | "I didn't understand. Say 'help' for examples." |
-| 10 | "exit" | Graceful shutdown |
-| 11 | (While JARVIS is speaking a long response) Press SPACE | TTS halts within 100ms, immediately switches back to LISTENING state |
-| 12 | Install third-party skill that requests network | Manifest displays prompt: "Skill X requests Network access. Allow? (Y/n)" |
-| 13 | "undo that" | Undoes previous reversible action (e.g., file creation) and says "Action undone." |
-| 14 | "open vs cod" (Low confidence) | System prompts: "Did you mean open vscode? (Y/n)" |
-| 15 | Ask complex query while STT holds memory | System evicts Whisper from VRAM, loads Ollama, then swaps back after processing |
+| #  | Command                                                | Expected Behavior                                                                 |
+| -- | ------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| 1  | "open chrome"                                          | Chrome launches, TTS says "Launching Chrome"                                      |
+| 2  | "find my resume"                                       | Returns list of matching files                                                    |
+| 3  | "open my resume" (3 files found)                       | System asks "Which one? 1. resume.pdf 2. ..."                                     |
+| 4  | (after above) "the second one"                         | Opens second file                                                                 |
+| 5  | "volume up"                                            | Volume increases 10%                                                              |
+| 6  | "take a screenshot"                                    | Screenshot saved to Desktop                                                       |
+| 7  | "what is my CPU usage"                                 | Returns "CPU: X%, RAM: Y%"                                                        |
+| 8  | "help"                                                 | Help screen displayed                                                             |
+| 9  | "blargle froop"                                        | "I didn't understand. Say 'help' for examples."                                   |
+| 10 | "exit"                                                 | Graceful shutdown                                                                 |
+| 11 | (While JARVIS is speaking a long response) Press SPACE | TTS halts within 100ms, immediately switches back to LISTENING state              |
+| 12 | Install third-party skill that requests network        | Manifest displays prompt: "Skill X requests Network access. Allow? (Y/n)"         |
+| 13 | "undo that"                                            | Undoes previous reversible action (e.g., file creation) and says "Action undone." |
+| 14 | "open vs cod" (Low confidence)                         | System prompts: "Did you mean open vscode? (Y/n)"                                 |
+| 15 | Ask complex query while STT holds memory               | System evicts Whisper from VRAM, loads Ollama, then swaps back after processing   |
 
 ### 7.3 Performance Benchmarks
 
 Run `python scripts/benchmark.py` targeting:
+
 - STT latency: < 2 seconds for 5-second audio clip
 - NLP parsing: < 100ms per intent
 - Skill execution (file ops): < 500ms
@@ -1524,27 +1553,32 @@ Run `python scripts/benchmark.py` targeting:
 ## 8. Phase 7 — Phase 2 Features (Post-MVP)
 
 ### 8.1 Wake Word Detection (F7)
+
 - Library: Porcupine (pvporcupine)
 - Integrate into `core/audio.py` as background listener thread
 - Toggle via `config/pipeline.json` → `features.wake_word_enabled`
 
 ### 8.2 Piper TTS Upgrade (F4)
+
 - Library: piper-tts==1.2.0
 - Add `PiperTTS(TTSInterface)` class in `core/tts.py`
 - Auto-detect Piper availability; fall back to pyttsx3
 
 ### 8.3 System Tray (F9)
+
 - Library: pystray
 - Create `interface/tray.py` with icon states (green/blue/red/gray)
 - Right-click menu: Enable/Disable, Settings, History, Quit
 
 ### 8.4 Web Dashboard (F11)
+
 - Library: Flask 3.x
 - Create `interface/web/` with routes for: status, history, skills, settings, logs
 - WebSocket for real-time log streaming
 
 ### 8.5 LLM Upgrade (F2 — Ollama)
-- Replace `RuleBasedNLP` with `OllamaNLP(NLPInterface)` 
+
+- Replace `RuleBasedNLP` with `OllamaNLP(NLPInterface)`
 - Use function-calling protocol with Llama 3.2 3B
 - Keep `RuleBasedNLP` as fallback
 
@@ -1601,6 +1635,7 @@ pip install pytest==7.4.4 pytest-mock==3.12.0
 ```
 
 **Known Windows issues:**
+
 - `keyboard` library requires admin rights for global hotkeys → Run as administrator OR use `keyboard.add_hotkey()` which works without admin for most cases
 - PyAudio fallback on Windows: `pip install pipwin && pipwin install pyaudio`
 - Volume control: use `ctypes` WinMM API or `pycaw` library
@@ -1667,6 +1702,7 @@ main.py
 ## 11. Verification Checklist
 
 ### Pre-Integration Checks
+
 - [ ] `models.py` — All 14 dataclasses/enums import without errors
 - [ ] `utils/security.py` — 5 dangerous patterns blocked, safe patterns pass
 - [ ] `core/audio.py` — `list_devices()` returns at least 1 microphone
@@ -1677,6 +1713,7 @@ main.py
 - [ ] `interface/ui.py` — All UI states display correctly in terminal
 
 ### Full System Checks
+
 - [ ] `python main.py --test-tts "Hello"` → Voice output heard
 - [ ] `python main.py --cli` → Text mode works for all intents
 - [ ] `python main.py` → Full voice loop completes one command
@@ -1688,6 +1725,7 @@ main.py
 - [ ] `pytest tests/` → All unit tests pass
 
 ### Performance Checks
+
 - [ ] Cold start (python main.py → "Ready"): < 10 seconds
 - [ ] STT latency for 3-second audio: < 2 seconds
 - [ ] NLP parse time: < 200ms
@@ -1698,33 +1736,33 @@ main.py
 
 ## Appendix A: State Machine Quick Reference
 
-| State | Trigger In | Trigger Out | Visual |
-|-------|-----------|-------------|--------|
-| INITIALIZING | App start | All components loaded | Progress bar |
-| IDLE | Response done / Error handled | SPACE pressed | `> _` prompt |
-| LISTENING | SPACE held | SPACE released / Silence / 10s timeout | Waveform animation |
-| TRANSCRIBING | Audio captured | Text produced | Spinner |
-| PARSING | Text ready | Intent detected | Spinner |
-| CLARIFYING | Multiple file matches | User responds | Numbered list |
-| EXECUTING | Intent clear | Skill returns | ⚙ message |
-| RESPONDING | Execution done | TTS complete | 🤖 message |
-| ERROR | Any failure | Error spoken | ❌ box |
-| SHUTTING_DOWN | "exit" / ESC | Process exit | 👋 |
+| State         | Trigger In                    | Trigger Out                            | Visual             |
+| ------------- | ----------------------------- | -------------------------------------- | ------------------ |
+| INITIALIZING  | App start                     | All components loaded                  | Progress bar       |
+| IDLE          | Response done / Error handled | SPACE pressed                          | `> _` prompt     |
+| LISTENING     | SPACE held                    | SPACE released / Silence / 10s timeout | Waveform animation |
+| TRANSCRIBING  | Audio captured                | Text produced                          | Spinner            |
+| PARSING       | Text ready                    | Intent detected                        | Spinner            |
+| CLARIFYING    | Multiple file matches         | User responds                          | Numbered list      |
+| EXECUTING     | Intent clear                  | Skill returns                          | ⚙ message         |
+| RESPONDING    | Execution done                | TTS complete                           | 🤖 message         |
+| ERROR         | Any failure                   | Error spoken                           | ❌ box             |
+| SHUTTING_DOWN | "exit" / ESC                  | Process exit                           | 👋                 |
 
 ---
 
 ## Appendix B: Common Pitfalls & Solutions
 
-| Issue | Root Cause | Fix |
-|-------|-----------|-----|
-| Whisper hangs on first run | Downloading 74MB model | Show "Downloading Whisper model..." message; set 5min timeout |
-| `keyboard` requires admin | Windows input hook restriction | Use `keyboard.add_hotkey()` non-global or run as admin |
-| pyttsx3 thread error on Windows | COM apartment threading | Only call `engine.runAndWait()` from main thread |
-| sounddevice "no device" | PortAudio not found | Fall back to PyAudio; show "Check audio settings" error |
-| spaCy model not found | Forgot `python -m spacy download` | Check on startup; add to setup script |
-| File search too slow | Searching entire disk | Always restrict to `allowed_directories` from config |
-| Clarification context lost | State not persisted between turns | `context.awaiting_clarification` must remain True until resolved |
-| Volume control fails | No pycaw on Windows | Provide ctypes WinMM fallback |
+| Issue                           | Root Cause                         | Fix                                                                |
+| ------------------------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| Whisper hangs on first run      | Downloading 74MB model             | Show "Downloading Whisper model..." message; set 5min timeout      |
+| `keyboard` requires admin     | Windows input hook restriction     | Use`keyboard.add_hotkey()` non-global or run as admin            |
+| pyttsx3 thread error on Windows | COM apartment threading            | Only call`engine.runAndWait()` from main thread                  |
+| sounddevice "no device"         | PortAudio not found                | Fall back to PyAudio; show "Check audio settings" error            |
+| spaCy model not found           | Forgot`python -m spacy download` | Check on startup; add to setup script                              |
+| File search too slow            | Searching entire disk              | Always restrict to`allowed_directories` from config              |
+| Clarification context lost      | State not persisted between turns  | `context.awaiting_clarification` must remain True until resolved |
+| Volume control fails            | No pycaw on Windows                | Provide ctypes WinMM fallback                                      |
 
 ---
 

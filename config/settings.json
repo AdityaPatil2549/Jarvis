@@ -37,43 +37,18 @@
       "allowed_directories": [
         "~/Documents",
         "~/Desktop",
-        "~/Downloads",
-        "~/Projects"
+        "~/Downloads"
       ]
     },
     "app_control": {
       "enabled": true,
       "app_map": {
-        "chrome": {
-          "win": "chrome",
-          "mac": "Google Chrome",
-          "linux": "google-chrome"
-        },
-        "firefox": {
-          "win": "firefox",
-          "mac": "Firefox",
-          "linux": "firefox"
-        },
-        "vscode": {
-          "win": "code",
-          "mac": "Visual Studio Code",
-          "linux": "code"
-        },
-        "terminal": {
-          "win": "cmd",
-          "mac": "Terminal",
-          "linux": "gnome-terminal"
-        },
-        "notepad": {
-          "win": "notepad",
-          "mac": "TextEdit",
-          "linux": "gedit"
-        },
-        "explorer": {
-          "win": "explorer",
-          "mac": "Finder",
-          "linux": "nautilus"
-        }
+        "chrome": { "win": "chrome", "mac": "Google Chrome", "linux": "google-chrome" },
+        "firefox": { "win": "firefox", "mac": "Firefox", "linux": "firefox" },
+        "vscode": { "win": "code", "mac": "Visual Studio Code", "linux": "code" },
+        "terminal": { "win": "cmd", "mac": "Terminal", "linux": "gnome-terminal" },
+        "notepad": { "win": "notepad", "mac": "TextEdit", "linux": "gedit" },
+        "explorer": { "win": "explorer", "mac": "Finder", "linux": "nautilus" }
       }
     },
     "system_control": {

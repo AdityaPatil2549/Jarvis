@@ -1,11 +1,25 @@
-sounddevice==0.4.6
-numpy==1.26.4
-openai-whisper==20231117
-spacy==3.7.4
-rapidfuzz==3.6.1
-pyttsx3==2.90
-psutil==5.9.8
-pyautogui==0.9.54
-keyboard==0.13.5
-colorama==0.4.6
-python-dotenv==1.0.0
+# ============================================================================
+# JARVIS-Lite Dependencies
+# ============================================================================
+
+# --- Core Pipeline ---
+openai-whisper>=20230918     # Speech-to-Text (primary)
+pyttsx3>=2.90                # Text-to-Speech
+sounddevice>=0.4.6           # Audio capture
+numpy>=1.24.0                # Audio array processing
+
+# --- NLP ---
+# spacy>=3.7.0               # NLP (Phase 2 — not needed for rule-based MVP)
+rapidfuzz>=3.0.0             # Fuzzy matching for clarification
+
+# --- Skills ---
+psutil>=5.9.0                # System info (CPU/RAM/Disk)
+pyautogui>=0.9.54            # Screenshots
+
+# --- Optional / Fallback ---
+# vosk>=0.3.45               # STT fallback (optional, large download)
+# torch>=2.0.0               # Required by Whisper (auto-installed)
+
+# --- Utilities ---
+# pystray>=0.19.4            # System tray (Phase 2)
+# flask>=3.0.0               # Web dashboard (Phase 2)
