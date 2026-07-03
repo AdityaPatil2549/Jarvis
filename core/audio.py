@@ -2,6 +2,12 @@
 core/audio.py - Audio capture and playback for JARVIS-Lite.
 Implements AudioInterface ABC + SoundDeviceAudio.
 
+Features:
+- Silence-based auto-stop recording
+- Configurable silence threshold and duration
+- Real-time audio level monitoring
+- Waveform visualization for terminal UI
+
 Source of truth: Backend_schema.md §3.1, Implementation_plan.md §3.4
 """
 
@@ -61,7 +67,15 @@ class AudioInterface(ABC):
 # ============================================================================
 
 class SoundDeviceAudio(AudioInterface):
-    """Audio capture using sounddevice library."""
+    """
+    Audio capture using sounddevice library.
+
+    Supports:
+    - Callback-based recording with real-time level monitoring
+    - Silence-based auto-stop (stops recording after silence_duration_ms of quiet)
+    - Manual stop via stop_recording()
+    - Configurable max recording duration
+    """
 
     def __init__(self):
         self.config: Optional[AudioConfig] = None
@@ -71,6 +85,13 @@ class SoundDeviceAudio(AudioInterface):
         self._stream = None
         self._record_start_time: float = 0.0
         self._lock = threading.Lock()
+
+        # Silence detection state
+        self._silence_threshold: float = 0.01
+        self._silence_duration_ms: int = 800
+        self._max_recording_seconds: int = 10
+        self._last_voice_time: float = 0.0
+        self._has_spoken: bool = False  # Track if user has spoken at all
 
     def initialize(self, config: Optional[AudioConfig] = None) -> bool:
         """Initialize audio system with SoundDevice."""
@@ -101,24 +122,70 @@ class SoundDeviceAudio(AudioInterface):
             logger.error(f"Audio initialization failed: {e}", component="audio")
             return False
 
+    def configure_silence_detection(self, threshold: float = 0.01,
+                                     duration_ms: int = 800,
+                                     max_seconds: int = 10):
+        """
+        Configure silence-based auto-stop parameters.
+
+        Args:
+            threshold: RMS level below which audio is "silent" (0.0-1.0)
+            duration_ms: Milliseconds of continuous silence before auto-stop
+            max_seconds: Maximum recording duration regardless of voice activity
+        """
+        self._silence_threshold = threshold
+        self._silence_duration_ms = duration_ms
+        self._max_recording_seconds = max_seconds
+
     def start_recording(self) -> None:
-        """Begin capturing audio from microphone."""
+        """Begin capturing audio from microphone with silence-based auto-stop."""
         import sounddevice as sd
 
         with self._lock:
             self._audio_buffer = []
             self._recording = True
             self._record_start_time = time.time()
+            self._last_voice_time = time.time()
+            self._has_spoken = False
 
         def audio_callback(indata, frames, time_info, status):
             if status:
                 logger.warning(f"Audio callback status: {status}",
                                component="audio")
             with self._lock:
-                if self._recording:
-                    self._audio_buffer.append(indata.copy())
-                    # Update current audio level
-                    self._current_level = float(np.sqrt(np.mean(indata ** 2)))
+                if not self._recording:
+                    return
+
+                self._audio_buffer.append(indata.copy())
+
+                # Update current audio level (RMS)
+                rms = float(np.sqrt(np.mean(indata ** 2)))
+                self._current_level = rms
+
+                # Silence detection for auto-stop
+                if rms >= self._silence_threshold:
+                    self._last_voice_time = time.time()
+                    self._has_spoken = True
+
+                # Auto-stop conditions:
+                # 1. User has spoken AND silence exceeded duration
+                # 2. Max recording time exceeded
+                elapsed = time.time() - self._record_start_time
+                silence_elapsed = time.time() - self._last_voice_time
+
+                if self._has_spoken and silence_elapsed > (self._silence_duration_ms / 1000):
+                    self._recording = False
+                    logger.debug(
+                        f"Auto-stop: silence for {silence_elapsed:.1f}s",
+                        component="audio"
+                    )
+
+                if elapsed > self._max_recording_seconds:
+                    self._recording = False
+                    logger.debug(
+                        f"Auto-stop: max duration {self._max_recording_seconds}s",
+                        component="audio"
+                    )
 
         self._stream = sd.InputStream(
             samplerate=self.config.sample_rate,
@@ -137,8 +204,11 @@ class SoundDeviceAudio(AudioInterface):
             self._recording = False
 
         if self._stream:
-            self._stream.stop()
-            self._stream.close()
+            try:
+                self._stream.stop()
+                self._stream.close()
+            except Exception:
+                pass
             self._stream = None
 
         # Concatenate audio buffer

@@ -75,15 +75,18 @@ def main():
     # ── Start JARVIS ───────────────────────────────────────────────────
     from jarvis_engine import JarvisEngine
     from interface.cli import CLI
+    from interface.ui import TerminalUI
 
     engine = JarvisEngine()
     cli = CLI(engine)
 
     # Apply CLI flags
     if args.no_color:
-        cli.ui = __import__('interface.ui', fromlist=['TerminalUI']).TerminalUI(no_color=True)
+        cli.ui = TerminalUI(no_color=True)
     if args.ascii:
-        cli.ui = __import__('interface.ui', fromlist=['TerminalUI']).TerminalUI(ascii_only=True)
+        cli.ui = TerminalUI(ascii_only=True)
+    if args.no_voice:
+        cli.no_voice = True
 
     try:
         cli.run()

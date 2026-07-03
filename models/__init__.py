@@ -388,11 +388,13 @@ class SkillFunction:
 class SystemConfig:
     """Complete system configuration"""
     audio: AudioConfig = field(default_factory=AudioConfig)
-    stt_engine: str = "whisper"
+    stt_engine: str = "faster-whisper"
     stt_model: str = "base"
-    tts_engine: str = "pyttsx3"
+    tts_engine: str = "kokoro"
     tts_rate: int = 175
     tts_volume: float = 0.9
+    tts_voice: str = "af_heart"   # Kokoro voice ID
+    tts_lang_code: str = "a"      # 'a'=American, 'b'=British
     nlp_engine: str = "spacy"
     nlp_model: str = "en_core_web_sm"
 
@@ -419,6 +421,8 @@ class SystemConfig:
             'tts_engine': self.tts_engine,
             'tts_rate': self.tts_rate,
             'tts_volume': self.tts_volume,
+            'tts_voice': self.tts_voice,
+            'tts_lang_code': self.tts_lang_code,
             'nlp_engine': self.nlp_engine,
             'nlp_model': self.nlp_model,
             'allowed_directories': self.allowed_directories,
@@ -440,11 +444,13 @@ class SystemConfig:
         )
         return cls(
             audio=audio_config,
-            stt_engine=data.get('stt_engine', 'whisper'),
+            stt_engine=data.get('stt_engine', 'faster-whisper'),
             stt_model=data.get('stt_model', 'base'),
-            tts_engine=data.get('tts_engine', 'pyttsx3'),
+            tts_engine=data.get('tts_engine', 'kokoro'),
             tts_rate=data.get('tts_rate', 175),
             tts_volume=data.get('tts_volume', 0.9),
+            tts_voice=data.get('tts_voice', 'af_heart'),
+            tts_lang_code=data.get('tts_lang_code', 'a'),
             nlp_engine=data.get('nlp_engine', 'spacy'),
             nlp_model=data.get('nlp_model', 'en_core_web_sm'),
             allowed_directories=data.get('allowed_directories', [

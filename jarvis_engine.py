@@ -92,7 +92,10 @@ class JarvisEngine:
                 self.stt_fallback.initialize()
 
             # Step 5: Initialize TTS (90%) — Kokoro primary, pyttsx3 fallback
-            progress("Initializing text-to-speech", 0.5)
+            progress("Initializing text-to-speech (Kokoro)", 0.5)
+            # Pass voice and language config to Kokoro before init
+            self.tts.voice = self.config.tts_voice
+            self.tts.lang_code = self.config.tts_lang_code
             tts_loaded = self.tts.initialize(
                 rate=self.config.tts_rate,
                 volume=self.config.tts_volume

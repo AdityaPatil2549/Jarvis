@@ -1,6 +1,6 @@
 """
 interface/cli.py - Command-line interface for JARVIS-Lite.
-Handles push-to-talk (SPACE key) and text input mode.
+Handles push-to-talk (SPACE key via pynput) and text input mode.
 
 Source of truth: Implementation_plan.md §5.2
 """
@@ -11,6 +11,7 @@ import threading
 from typing import Optional
 
 from interface.ui import TerminalUI
+from core.hotkeys import HotkeyManager
 from models import State
 from utils.logger import JarvisLogger
 
@@ -24,8 +25,13 @@ class CLI:
     def __init__(self, jarvis_engine):
         self.engine = jarvis_engine
         self.ui = TerminalUI()
+        self.hotkeys = HotkeyManager()
         self.running = True
-        self.ptt_key = 'space'
+        self.no_voice = False
+
+        # Push-to-talk state
+        self._ptt_active = False
+        self._ptt_lock = threading.Lock()
 
     def run(self):
         """Main event loop."""
@@ -34,31 +40,49 @@ class CLI:
         self.engine.initialize(progress_callback=self.ui.show_loading_step)
         self.ui.show_startup_complete()
 
+        # Configure silence detection from audio config
+        audio_cfg = self.engine.config_manager.config.get('audio', {})
+        self.engine.audio.configure_silence_detection(
+            threshold=audio_cfg.get('silence_threshold', 0.01),
+            duration_ms=audio_cfg.get('silence_duration_ms', 800),
+            max_seconds=audio_cfg.get('max_recording_seconds', 10)
+        )
+
+        # Initialize hotkey manager
+        hotkeys_config = self.engine.config_manager.config.get('hotkeys', {})
+        self.hotkeys.initialize(config=hotkeys_config)
+
+        if self.hotkeys.backend == "pynput":
+            self.hotkeys.start(
+                on_ptt_start=self._on_ptt_start,
+                on_ptt_end=self._on_ptt_end,
+                on_escape=self._on_escape,
+                on_help=self._on_help_key,
+            )
+
+        # Main loop
         while self.running:
             self.ui.show_idle_prompt()
 
-            # Wait for text input (push-to-talk handled separately)
             text_input = self._wait_for_input()
 
             if text_input is None:
-                # Push-to-talk: record audio
-                self._handle_voice_input()
+                continue  # PTT handled by hotkey callbacks
             elif text_input.lower() in ('exit', 'quit', 'bye', 'goodbye'):
                 self._shutdown()
             elif text_input.lower() == 'help':
                 self.ui.show_help()
-                input()  # Wait for Enter
+                try:
+                    input()  # Wait for Enter
+                except (EOFError, KeyboardInterrupt):
+                    pass
             elif text_input.strip():
-                # Text command: skip STT, go straight to NLP
                 self._handle_text_input(text_input)
 
     def _wait_for_input(self) -> Optional[str]:
         """
         Wait for text input via stdin.
-        Returns text if typed, None if push-to-talk was triggered.
-
-        For Phase 1 MVP, uses simple input(). Phase 2 will add
-        global keyboard hooks for SPACE-key push-to-talk.
+        Returns text if typed, None if nothing entered.
         """
         try:
             text = input()
@@ -80,38 +104,56 @@ class CLI:
             if response:
                 self.ui.show_response(response)
             else:
-                self.ui.show_warning("I didn't understand that. Say 'help' for examples.")
+                # HELP returns None — already handled
+                pass
         except Exception as e:
             self.ui.stop_all_animations()
             self.ui.show_error("Processing Error", str(e),
                                "Try rephrasing your command.")
             logger.error(f"Error processing text: {e}", component="cli")
 
-    def _handle_voice_input(self):
-        """
-        Handle push-to-talk voice input.
+    # ========================================================================
+    # PUSH-TO-TALK CALLBACKS
+    # ========================================================================
 
-        Flow:
-        1. Show listening animation
-        2. Record audio
-        3. Show STT cancel window
-        4. Process through engine
-        """
+    def _on_ptt_start(self):
+        """Called when SPACE is pressed — start recording."""
+        with self._ptt_lock:
+            if self._ptt_active:
+                return
+            self._ptt_active = True
+
+        self.ui.stop_all_animations()
         self.ui.show_listening()
 
         try:
-            # Record audio
             self.engine.audio.start_recording()
+        except Exception as e:
+            logger.error(f"Failed to start recording: {e}", component="cli")
+            with self._ptt_lock:
+                self._ptt_active = False
 
-            # Wait for silence or timeout
-            start_time = time.time()
-            max_duration = 10  # seconds
+    def _on_ptt_end(self):
+        """Called when SPACE is released — stop recording and process."""
+        with self._ptt_lock:
+            if not self._ptt_active:
+                return
+            self._ptt_active = False
 
-            while time.time() - start_time < max_duration:
-                if not self.engine.audio.is_recording():
-                    break
-                time.sleep(0.1)
+        # Process in background thread to avoid blocking hotkey listener
+        threading.Thread(target=self._process_voice, daemon=True).start()
 
+    def _process_voice(self):
+        """
+        Process recorded voice input.
+
+        Flow:
+        1. Stop recording → AudioData
+        2. Transcribe → text
+        3. Show STT cancel window (1.5s)
+        4. Parse + execute → response
+        """
+        try:
             audio_data = self.engine.audio.stop_recording()
             self.ui.stop_all_animations()
 
@@ -148,9 +190,36 @@ class CLI:
                                "Check your microphone settings.")
             logger.error(f"Voice input error: {e}", component="cli")
 
+    def _on_escape(self):
+        """Called when ESC is pressed — cancel or barge-in."""
+        # If TTS is speaking, interrupt it (barge-in)
+        if self.engine.tts.is_speaking:
+            self.engine.tts.stop()
+            self.ui.stop_all_animations()
+            self.ui.show_info("Speech interrupted.")
+            return
+
+        # If recording, cancel it
+        with self._ptt_lock:
+            if self._ptt_active:
+                self._ptt_active = False
+                self.engine.audio.stop_recording()
+                self.ui.stop_all_animations()
+                self.ui.show_info("Recording cancelled.")
+                return
+
+    def _on_help_key(self):
+        """Called when F1 is pressed — show help."""
+        self.ui.show_help()
+
+    # ========================================================================
+    # LIFECYCLE
+    # ========================================================================
+
     def _shutdown(self):
         """Graceful shutdown sequence."""
         self.running = False
+        self.hotkeys.stop()
         self.ui.stop_all_animations()
         print()
         self.ui.show_info("Shutting down JARVIS-Lite...")

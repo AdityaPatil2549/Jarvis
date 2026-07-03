@@ -77,11 +77,13 @@ class ConfigManager:
         skills_cfg = self.config.get('skills', {})
 
         return SystemConfig(
-            stt_engine=pipeline.get('stt', {}).get('engine', 'whisper'),
+            stt_engine=pipeline.get('stt', {}).get('engine', 'faster-whisper'),
             stt_model=pipeline.get('stt', {}).get('model', 'base'),
-            tts_engine=pipeline.get('tts', {}).get('engine', 'pyttsx3'),
+            tts_engine=pipeline.get('tts', {}).get('engine', 'kokoro'),
             tts_rate=pipeline.get('tts', {}).get('rate', 175),
             tts_volume=pipeline.get('tts', {}).get('volume', 0.9),
+            tts_voice=pipeline.get('tts', {}).get('voice', 'af_heart'),
+            tts_lang_code=pipeline.get('tts', {}).get('lang_code', 'a'),
             nlp_engine=pipeline.get('nlp', {}).get('engine', 'spacy'),
             nlp_model=pipeline.get('nlp', {}).get('model', 'en_core_web_sm'),
             allowed_directories=skills_cfg.get('file_operations', {}).get(

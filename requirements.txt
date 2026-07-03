@@ -16,6 +16,9 @@ rapidfuzz>=3.0.0             # Fuzzy matching for clarification
 psutil>=5.9.0                # System info (CPU/RAM/Disk)
 pyautogui>=0.9.54            # Screenshots
 
+# --- Input ---
+pynput>=1.7.6                # Push-to-talk keyboard hooks
+
 # --- TTS Fallback ---
 pyttsx3>=2.90                # Fallback TTS (system SAPI5/espeak)
 

@@ -53,7 +53,7 @@ def run_setup_wizard():
     config = {
         "pipeline": {
             "stt": {
-                "engine": "whisper",
+                "engine": "faster-whisper",
                 "model": stt_model,
                 "fallback": "vosk",
                 "language": "en"
@@ -64,9 +64,12 @@ def run_setup_wizard():
                 "confidence_threshold": 0.8
             },
             "tts": {
-                "engine": "pyttsx3",
+                "engine": "kokoro",
+                "voice": "af_heart",
+                "lang_code": "a",
                 "rate": 175,
-                "volume": 0.9
+                "volume": 0.9,
+                "fallback": "pyttsx3"
             }
         },
         "audio": {
