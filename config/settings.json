@@ -1,0 +1,93 @@
+{
+  "pipeline": {
+    "stt": {
+      "engine": "whisper",
+      "model": "base",
+      "fallback": "vosk",
+      "language": "en"
+    },
+    "nlp": {
+      "engine": "spacy",
+      "model": "en_core_web_sm",
+      "confidence_threshold": 0.8
+    },
+    "tts": {
+      "engine": "pyttsx3",
+      "rate": 175,
+      "volume": 0.9
+    }
+  },
+  "audio": {
+    "sample_rate": 16000,
+    "channels": 1,
+    "chunk_size": 1024,
+    "silence_threshold": 0.01,
+    "silence_duration_ms": 800,
+    "max_recording_seconds": 10
+  },
+  "features": {
+    "wake_word_enabled": false,
+    "save_history": true,
+    "verbose_logging": false,
+    "push_to_talk_key": "space"
+  },
+  "skills": {
+    "file_operations": {
+      "enabled": true,
+      "allowed_directories": [
+        "~/Documents",
+        "~/Desktop",
+        "~/Downloads",
+        "~/Projects"
+      ]
+    },
+    "app_control": {
+      "enabled": true,
+      "app_map": {
+        "chrome": {
+          "win": "chrome",
+          "mac": "Google Chrome",
+          "linux": "google-chrome"
+        },
+        "firefox": {
+          "win": "firefox",
+          "mac": "Firefox",
+          "linux": "firefox"
+        },
+        "vscode": {
+          "win": "code",
+          "mac": "Visual Studio Code",
+          "linux": "code"
+        },
+        "terminal": {
+          "win": "cmd",
+          "mac": "Terminal",
+          "linux": "gnome-terminal"
+        },
+        "notepad": {
+          "win": "notepad",
+          "mac": "TextEdit",
+          "linux": "gedit"
+        },
+        "explorer": {
+          "win": "explorer",
+          "mac": "Finder",
+          "linux": "nautilus"
+        }
+      }
+    },
+    "system_control": {
+      "enabled": true,
+      "screenshot_dir": "~/Desktop"
+    },
+    "process_management": {
+      "enabled": true
+    }
+  },
+  "hotkeys": {
+    "push_to_talk": "space",
+    "cancel": "escape",
+    "help": "f1",
+    "exit": "ctrl+q"
+  }
+}

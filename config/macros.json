@@ -1,0 +1,15 @@
+{
+  "morning routine": [
+    {
+      "intent": "open_app",
+      "entity": "chrome"
+    },
+    {
+      "intent": "open_file",
+      "entity": "todo.txt"
+    },
+    {
+      "intent": "system_info"
+    }
+  ]
+}
