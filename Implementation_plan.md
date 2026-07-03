@@ -1472,6 +1472,20 @@ def test_blocks_dangerous_commands():
     from utils.security import is_dangerous_command
     assert is_dangerous_command("rm -rf /") is True
     assert is_dangerous_command("open chrome") is False
+
+**`tests/test_manifest.py`** — Test skill capability permissions:
+```python
+def test_manifest_permission_denied():
+    from utils.security import validate_capabilities
+    from models import SkillManifest, Intent, IntentType
+    
+    # Mock skill that requires FILE_SYSTEM_WRITE but manifest lacks it
+    class MockSkill:
+        manifest = SkillManifest(name="mock", version="1.0", required_capabilities=["network"])
+        
+    intent = Intent(type=IntentType.CREATE_FILE, confidence=0.9)
+    # Should deny because intent requires write access
+    assert validate_capabilities(MockSkill(), intent) is False
 ```
 
 ### 7.2 Manual Verification Tests
@@ -1490,6 +1504,11 @@ Run these scenarios after full integration:
 | 8 | "help" | Help screen displayed |
 | 9 | "blargle froop" | "I didn't understand. Say 'help' for examples." |
 | 10 | "exit" | Graceful shutdown |
+| 11 | (While JARVIS is speaking a long response) Press SPACE | TTS halts within 100ms, immediately switches back to LISTENING state |
+| 12 | Install third-party skill that requests network | Manifest displays prompt: "Skill X requests Network access. Allow? (Y/n)" |
+| 13 | "undo that" | Undoes previous reversible action (e.g., file creation) and says "Action undone." |
+| 14 | "open vs cod" (Low confidence) | System prompts: "Did you mean open vscode? (Y/n)" |
+| 15 | Ask complex query while STT holds memory | System evicts Whisper from VRAM, loads Ollama, then swaps back after processing |
 
 ### 7.3 Performance Benchmarks
 

@@ -1,9 +1,3 @@
-**Philosophical Diagnosis:** Requesting app flow before coding is correct process. Most developers skip this, then rewrite 40% of code when they realize states don't connect.
-
-**Blunt Verdict:** You get four flows: User Journey, System State Machine, Technical Execution, and Error Handling. Study these until muscle memory, then code.
-
----
-
 # APPLICATION FLOW SPECIFICATION
 
 ## JARVIS-Lite: Complete Flow Documentation
@@ -1529,8 +1523,3 @@ def main_loop():
 ╚═══════════════════════════════════════════════════════════╝
 ```
 
----
-
-**Long-Term Implication:** This flow becomes your implementation blueprint. Every function, every state transition, every error case is documented. Code without flow documentation is archaeology—developers spend 60% of time figuring out "why did they do this?"
-
-**Accountability Question:** Are you printing this flow diagram and starting with State 1 (INITIALIZING) tomorrow morning, or requesting another analysis document to avoid writing actual code?

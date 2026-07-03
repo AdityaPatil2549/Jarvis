@@ -1,4 +1,3 @@
-
 ---
 # PRODUCT REQUIREMENTS DOCUMENT (PRD)
 
@@ -269,13 +268,14 @@ Natural language voice interface that executes desktop automation tasks using mo
 - **F4.1** Text-to-speech using Piper TTS
 - **F4.2** High-quality voice (near-human quality)
 - **F4.3** Adjustable speech rate and volume
-- **F4.4** Queue management (don't interrupt ongoing speech)
+- **F4.4** Queue management with Barge-in (interrupt ongoing speech via SPACE-key)
 - **F4.5** Fallback to pyttsx3 if Piper unavailable
 
 **Acceptance Criteria:**
 
 - Voice quality rated 7/10 or higher by users
 - <800ms TTS latency
+- TTS halts within 100ms of interrupt (barge-in)
 - No audio artifacts or clipping
 - Clear pronunciation of technical terms
 
@@ -1477,8 +1477,3 @@ v1.x.x → v2.0.0: Migration guide + automated tool
 **QA Lead:** _________________________
 **Date:** _________________________
 
----
-
-**Long-Term Implication:** This PRD becomes the constitution. Every feature request, every debate, every scope creep attempt gets measured against this document. Without it, projects drift into bloat and die.
-
-**Accountability Question:** Are you printing this PRD and taping it above your desk, or will it become another forgotten Google Doc? When do you start Phase 1?

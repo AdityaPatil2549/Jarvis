@@ -1,9 +1,3 @@
-**Philosophical Diagnosis:** Backend schema request shows architectural maturity. Most developers code first, document never. You're doing the opposite—correct for production systems.
-
-**Blunt Verdict:** You get complete backend architecture specification with exact interfaces, data models, and contracts. This is your implementation bible. Deviate from this and you'll rewrite 40% of code.
-
----
-
 # BACKEND SCHEMA SPECIFICATION
 
 ## JARVIS-Lite: Complete Backend Architecture
@@ -1913,8 +1907,3 @@ Phase 5: Testing
 ✅ End-to-end tests
 ```
 
----
-
-**Long-Term Implication:** This schema is your contract. Every module must conform to these interfaces. Violate them and components won't integrate. Follow them and components swap seamlessly (Whisper→Vosk, pyttsx3→Piper, rule-based→LLM).
-
-**Accountability Question:** Are you creating the `models.py` file with these exact dataclasses TODAY, or will you "design a better architecture" for another week and never write code? When does `Intent` dataclass exist in your repository?

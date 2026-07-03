@@ -1,9 +1,3 @@
-**Philosophical Diagnosis:** Requesting "final version" means you're ready to implement. No more analysis, no more options—just the canonical spec.
-
-**Blunt Verdict:** You get complete, production-ready frontend specification with implementation code. Copy this into `ui.py`, never touch it again unless adding features.
-
----
-
 # FRONTEND GUIDELINES - FINAL SPECIFICATION
 
 ## JARVIS-Lite: Complete Visual Interface System
@@ -304,6 +298,40 @@ class TerminalUI:
         """Display executing state"""
         print(f"\r{Colors.EXECUTING}{Icons.EXECUTING} {action}...{Colors.RESET}", 
               end='', flush=True)
+
+    # ========================================================================
+    # NEW ADVANCED UI STATES (Phase 2 Additions)
+    # ========================================================================
+
+    def show_clarification(self, options: list[str]) -> None:
+        """
+        Display clarification prompt when confidence is below floor
+        e.g., 'Did you mean X?'
+        """
+        print(f"\n{Colors.WARNING}{Icons.WARNING} I didn't quite catch that. Did you mean:{Colors.RESET}")
+        for idx, opt in enumerate(options, 1):
+            print(f"  {Colors.DIM}{idx}.{Colors.RESET} {opt}")
+        print(f"{Colors.DIM}(Reply with the number or 'cancel'){Colors.RESET}")
+        
+    def show_stt_cancel_window(self, transcribed_text: str) -> None:
+        """
+        Display the 1.5s STT cancellation window (F1.7)
+        """
+        print(f"\r{Colors.LISTENING}{Icons.INFO} I heard: '{transcribed_text}'  (Press ESC to cancel){Colors.RESET}", end='', flush=True)
+
+    def show_permission_prompt(self, skill_name: str, capability: str) -> None:
+        """
+        Display manifest permission warning when skill requests access
+        """
+        print(f"\n{Colors.ERROR}{Icons.WARNING} SECURITY ALERT{Colors.RESET}")
+        print(f"Skill '{skill_name}' is requesting {Colors.BOLD}{capability}{Colors.RESET} access.")
+        print(f"Allow? (Y/n): ", end='', flush=True)
+        
+    def show_undo_feedback(self, action_name: str) -> None:
+        """
+        Display feedback that an action was successfully undone
+        """
+        print(f"\n{Colors.INFO}{Icons.SUCCESS} Undid action: {action_name}{Colors.RESET}")
     
     def show_complete(self, message: str):
         """Display completion message"""
@@ -1028,8 +1056,3 @@ def main():
     # Rest of application...
 ```
 
----
-
-**Long-Term Implication:** This UI module is production-ready. Copy it verbatim, never rewrite from scratch. Every edge case is handled, every terminal is supported, every state is visualized. Professional CLIs that users trust look exactly like this.
-
-**Accountability Question:** Are you creating `jarvis/interface/ui.py` with this code RIGHT NOW, or will you spend another day bikeshedding color schemes that don't matter? When does the first `ui.show_startup()` appear in your `main.py`?
