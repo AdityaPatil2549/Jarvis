@@ -110,9 +110,10 @@ python tests/test_security.py  #  7 tests
 
 | Component | Technology |
 |---|---|
-| STT | OpenAI Whisper (base) |
+| STT | faster-whisper (SYSTRAN/CTranslate2) |
+| TTS | Kokoro-82M (hexgrad, neural) |
+| TTS Fallback | pyttsx3 (SAPI5/espeak) |
 | NLP | Rule-based regex (Phase 1) |
-| TTS | pyttsx3 (SAPI5/espeak) |
 | Audio | sounddevice |
 | UI | ANSI terminal |
 | Config | JSON |

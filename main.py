@@ -43,16 +43,19 @@ def main():
 
     # ── Handle --test-tts ──────────────────────────────────────────────
     if args.test_tts:
-        from core.tts import Pyttsx3TTS
-        tts = Pyttsx3TTS()
-        if tts.initialize():
-            print(f"Speaking: '{args.test_tts}'")
-            tts.speak(args.test_tts)
-            import time
-            time.sleep(3)
-            tts.shutdown()
-        else:
-            print("TTS initialization failed.")
+        import time
+        from core.tts import KokoroTTS, Pyttsx3TTS
+        tts = KokoroTTS()
+        if not tts.initialize():
+            print("Kokoro unavailable, trying pyttsx3 fallback...")
+            tts = Pyttsx3TTS()
+            if not tts.initialize():
+                print("TTS initialization failed.")
+                sys.exit(1)
+        print(f"Speaking: '{args.test_tts}'")
+        tts.speak(args.test_tts)
+        time.sleep(5)
+        tts.shutdown()
         sys.exit(0)
 
     # ── Handle --verbose logger setup ──────────────────────────────────

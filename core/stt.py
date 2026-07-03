@@ -1,10 +1,11 @@
 """
 core/stt.py - Speech-to-Text for JARVIS-Lite.
-Implements STTInterface ABC + WhisperSTT + VoskSTT fallback.
+Implements STTInterface ABC + FasterWhisperSTT (primary) + VoskSTT (fallback).
 
-Source of truth: Backend_schema.md §3.2, Implementation_plan.md §3.5
+Uses: https://github.com/SYSTRAN/faster-whisper (pip install faster-whisper)
 """
 
+import math
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -42,48 +43,90 @@ class STTInterface(ABC):
 
 
 # ============================================================================
-# WHISPER IMPLEMENTATION (PRIMARY)
+# FASTER-WHISPER IMPLEMENTATION (PRIMARY)
 # ============================================================================
 
-class WhisperSTT(STTInterface):
-    """OpenAI Whisper speech-to-text engine (primary)."""
+class FasterWhisperSTT(STTInterface):
+    """
+    SYSTRAN faster-whisper speech-to-text engine (primary).
+    Uses CTranslate2 for 4x faster inference than openai-whisper.
+
+    pip install faster-whisper
+    """
 
     def __init__(self):
         self.model = None
         self.model_name: str = "base"
         self.last_confidence: float = 0.0
         self._loaded = False
+        self._device: str = "cpu"
+        self._compute_type: str = "int8"
 
     def initialize(self, model: str = "base") -> bool:
         """
-        Load Whisper model. Cached after first load (~74MB download).
-        Model sizes: tiny(39M), base(74M), small(244M), medium(769M), large(1550M)
+        Load faster-whisper model.
+        Model sizes: tiny, base, small, medium, large-v3
+        Auto-detects GPU and selects optimal compute type.
         """
         self.model_name = model
         try:
-            import whisper
-            logger.info(f"Loading Whisper model: {model}", component="stt")
-            self.model = whisper.load_model(model)
+            from faster_whisper import WhisperModel
+
+            # Auto-detect device
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    self._device = "cuda"
+                    self._compute_type = "float16"
+                    logger.info("GPU detected — using CUDA with float16",
+                                component="stt")
+                else:
+                    self._device = "cpu"
+                    self._compute_type = "int8"
+                    logger.info("No GPU — using CPU with int8 quantization",
+                                component="stt")
+            except ImportError:
+                self._device = "cpu"
+                self._compute_type = "int8"
+                logger.info("torch not found — defaulting to CPU int8",
+                            component="stt")
+
+            logger.info(
+                f"Loading faster-whisper model: {model} "
+                f"(device={self._device}, compute={self._compute_type})",
+                component="stt"
+            )
+
+            self.model = WhisperModel(
+                model,
+                device=self._device,
+                compute_type=self._compute_type
+            )
+
             self._loaded = True
-            logger.info(f"Whisper model '{model}' loaded successfully",
+            logger.info(f"faster-whisper model '{model}' loaded successfully",
                         component="stt")
             return True
+
         except ImportError:
-            logger.error("openai-whisper not installed. Run: pip install openai-whisper",
-                         component="stt")
+            logger.error(
+                "faster-whisper not installed. Run: pip install faster-whisper",
+                component="stt"
+            )
             return False
         except Exception as e:
-            logger.error(f"Whisper initialization failed: {e}", component="stt")
+            logger.error(f"faster-whisper initialization failed: {e}",
+                         component="stt")
             return False
 
     def transcribe(self, audio: AudioData) -> Optional[str]:
         """
-        Transcribe audio. Returns None if empty or failed.
-        Sets self.last_confidence (Whisper doesn't provide per-utterance confidence,
-        so we estimate from average log-prob).
+        Transcribe audio using faster-whisper.
+        Returns None if empty or failed.
+        Populates self.last_confidence from segment avg_logprob.
         """
         if not self._loaded or self.model is None:
-            logger.error("Whisper model not loaded", component="stt")
+            logger.error("faster-whisper model not loaded", component="stt")
             return None
 
         try:
@@ -100,30 +143,43 @@ class WhisperSTT(STTInterface):
                 logger.debug("Audio too short for transcription", component="stt")
                 return None
 
-            result = self.model.transcribe(
+            # faster-whisper returns (segments_generator, info)
+            segments, info = self.model.transcribe(
                 audio_array,
                 language='en',
-                fp16=False,
-                verbose=False
+                beam_size=5,
+                vad_filter=True,  # Skip silence automatically
+                vad_parameters=dict(
+                    min_silence_duration_ms=500,
+                    speech_pad_ms=200
+                )
             )
 
-            text = result['text'].strip()
+            # Consume generator and collect text + confidence
+            texts = []
+            logprobs = []
+            for segment in segments:
+                texts.append(segment.text.strip())
+                logprobs.append(segment.avg_logprob)
+
+            text = ' '.join(texts).strip()
 
             # Estimate confidence from average log probability
-            segments = result.get('segments', [])
-            if segments:
-                avg_logprob = sum(s.get('avg_logprob', -1.0) for s in segments) / len(segments)
-                # Convert log prob to 0-1 confidence (rough approximation)
-                import math
+            if logprobs:
+                avg_logprob = sum(logprobs) / len(logprobs)
                 self.last_confidence = min(1.0, max(0.0, math.exp(avg_logprob)))
             else:
-                self.last_confidence = 0.9  # Default high confidence
+                self.last_confidence = 0.0
 
             if not text:
                 return None
 
-            logger.debug(f"Transcribed: '{text}' (confidence: {self.last_confidence:.2f})",
-                         component="stt")
+            logger.debug(
+                f"Transcribed: '{text}' "
+                f"(confidence: {self.last_confidence:.2f}, "
+                f"lang: {info.language} [{info.language_probability:.0%}])",
+                component="stt"
+            )
             return text
 
         except Exception as e:
@@ -135,10 +191,10 @@ class WhisperSTT(STTInterface):
         return self._loaded
 
     def shutdown(self) -> None:
-        """Release Whisper model from memory."""
+        """Release model from memory."""
         self.model = None
         self._loaded = False
-        logger.debug("Whisper model unloaded", component="stt")
+        logger.debug("faster-whisper model unloaded", component="stt")
 
 
 # ============================================================================
@@ -146,7 +202,7 @@ class WhisperSTT(STTInterface):
 # ============================================================================
 
 class VoskSTT(STTInterface):
-    """Vosk speech-to-text engine (lightweight fallback)."""
+    """Vosk speech-to-text engine (lightweight CPU-only fallback)."""
 
     def __init__(self):
         self.model = None
@@ -154,12 +210,9 @@ class VoskSTT(STTInterface):
         self._loaded = False
 
     def initialize(self, model: str = "vosk-model-small-en-us-0.15") -> bool:
-        """
-        Load Vosk model. Must be downloaded separately.
-        Default model is ~40MB.
-        """
+        """Load Vosk model from models/vosk/ directory."""
         try:
-            from vosk import Model, KaldiRecognizer
+            from vosk import Model
 
             model_path = f"models/vosk/{model}"
             logger.info(f"Loading Vosk model: {model_path}", component="stt")
@@ -183,8 +236,8 @@ class VoskSTT(STTInterface):
 
         try:
             import json
-            from vosk import KaldiRecognizer
             import numpy as np
+            from vosk import KaldiRecognizer
 
             recognizer = KaldiRecognizer(self.model, audio.sample_rate)
 

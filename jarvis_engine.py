@@ -13,9 +13,9 @@ from models import (
     AudioData, ExecutionResult
 )
 from core.audio import SoundDeviceAudio
-from core.stt import WhisperSTT, VoskSTT
+from core.stt import FasterWhisperSTT, VoskSTT
 from core.nlp import RuleBasedNLP
-from core.tts import Pyttsx3TTS
+from core.tts import KokoroTTS, Pyttsx3TTS
 from core.executor import SkillBasedExecutor
 from core.config_manager import ConfigManager
 from core.model_manager import ModelManager
@@ -39,10 +39,11 @@ class JarvisEngine:
 
         # Components (initialized in initialize())
         self.audio = SoundDeviceAudio()
-        self.stt = WhisperSTT()
+        self.stt = FasterWhisperSTT()
         self.stt_fallback = VoskSTT()
         self.nlp = RuleBasedNLP()
-        self.tts = Pyttsx3TTS()
+        self.tts = KokoroTTS()            # Primary: Kokoro neural TTS
+        self.tts_fallback = Pyttsx3TTS()  # Fallback: system SAPI5/espeak
         self.skill_manager = SkillManager()
         self.executor: Optional[SkillBasedExecutor] = None
         self.model_manager = ModelManager(self.stt, self.nlp)
@@ -82,20 +83,28 @@ class JarvisEngine:
                 logger.warning("Audio not available — text-only mode",
                                component="engine")
 
-            # Step 4: Load Whisper STT model (80%)
-            progress("Loading speech recognition model", 1.5)
+            # Step 4: Load faster-whisper STT model (80%)
+            progress("Loading speech recognition model (faster-whisper)", 1.5)
             stt_loaded = self.stt.initialize(model=self.config.stt_model)
             if not stt_loaded:
-                logger.warning("Whisper not available, trying Vosk fallback",
+                logger.warning("faster-whisper not available, trying Vosk fallback",
                                component="engine")
                 self.stt_fallback.initialize()
 
-            # Step 5: Initialize TTS (90%)
+            # Step 5: Initialize TTS (90%) — Kokoro primary, pyttsx3 fallback
             progress("Initializing text-to-speech", 0.5)
-            self.tts.initialize(
+            tts_loaded = self.tts.initialize(
                 rate=self.config.tts_rate,
                 volume=self.config.tts_volume
             )
+            if not tts_loaded:
+                logger.warning("Kokoro TTS unavailable, falling back to pyttsx3",
+                               component="engine")
+                self.tts = self.tts_fallback
+                self.tts.initialize(
+                    rate=self.config.tts_rate,
+                    volume=self.config.tts_volume
+                )
 
             # Step 6: Load skills (95%)
             progress("Loading skills", 0.5)

@@ -1,7 +1,7 @@
 {
   "pipeline": {
     "stt": {
-      "engine": "whisper",
+      "engine": "faster-whisper",
       "model": "base",
       "fallback": "vosk",
       "language": "en"
@@ -12,9 +12,12 @@
       "confidence_threshold": 0.8
     },
     "tts": {
-      "engine": "pyttsx3",
+      "engine": "kokoro",
+      "voice": "af_heart",
+      "lang_code": "a",
       "rate": 175,
-      "volume": 0.9
+      "volume": 0.9,
+      "fallback": "pyttsx3"
     }
   },
   "audio": {

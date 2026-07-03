@@ -3,23 +3,26 @@
 # ============================================================================
 
 # --- Core Pipeline ---
-openai-whisper>=20230918     # Speech-to-Text (primary)
-pyttsx3>=2.90                # Text-to-Speech
-sounddevice>=0.4.6           # Audio capture
+faster-whisper>=1.0.0        # Speech-to-Text (SYSTRAN/CTranslate2, 4x faster)
+kokoro>=0.9.4                # Text-to-Speech (Kokoro-82M, neural, fully local)
+sounddevice>=0.4.6           # Audio capture + playback
+soundfile>=0.12.0            # Audio file I/O (required by Kokoro)
 numpy>=1.24.0                # Audio array processing
 
 # --- NLP ---
-# spacy>=3.7.0               # NLP (Phase 2 — not needed for rule-based MVP)
 rapidfuzz>=3.0.0             # Fuzzy matching for clarification
 
 # --- Skills ---
 psutil>=5.9.0                # System info (CPU/RAM/Disk)
 pyautogui>=0.9.54            # Screenshots
 
+# --- TTS Fallback ---
+pyttsx3>=2.90                # Fallback TTS (system SAPI5/espeak)
+
 # --- Optional / Fallback ---
 # vosk>=0.3.45               # STT fallback (optional, large download)
-# torch>=2.0.0               # Required by Whisper (auto-installed)
+# torch>=2.0.0               # Auto-installed by faster-whisper if needed
 
-# --- Utilities ---
-# pystray>=0.19.4            # System tray (Phase 2)
-# flask>=3.0.0               # Web dashboard (Phase 2)
+# --- Phase 2 (Post-MVP) ---
+# pystray>=0.19.4            # System tray
+# flask>=3.0.0               # Web dashboard
